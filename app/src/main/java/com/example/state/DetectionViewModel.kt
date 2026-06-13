@@ -6,7 +6,7 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.ml.ObjectDetector
+import com.example.ml.LizardMLDetector
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
 
 class DetectionViewModel(context: Context) : ViewModel() {
 
-    private val detector = ObjectDetector(context.applicationContext)
+    private val detector = LizardMLDetector(context.applicationContext)
     
     private val _state = MutableStateFlow(DetectionState())
     val state: StateFlow<DetectionState> = _state.asStateFlow()
@@ -155,6 +155,11 @@ class DetectionViewModel(context: Context) : ViewModel() {
 
     fun triggerError(msg: String) {
         _state.update { it.copy(error = msg) }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        detector.close()
     }
 
     private fun loadBitmapFromUri(context: Context, uri: Uri): Bitmap? {

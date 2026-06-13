@@ -22,8 +22,10 @@ cameraView = "1.5.0"
 cameraCore = "1.5.0"
 robolectric = "4.16.1"
 roborazzi = "1.59.0"
+mediapipe = "0.10.14"
 
 [libraries]
+mediapipe-tasks-vision = { group = "com.google.mediapipe", name = "tasks-vision", version.ref = "mediapipe" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }

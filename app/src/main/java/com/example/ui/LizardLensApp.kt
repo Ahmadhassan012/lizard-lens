@@ -555,7 +555,9 @@ fun BasicPermissionRationaleSheet(
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Button(
-                        onClick = onAction,
+                        onClick = {
+                            onAction()
+                        },
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                         modifier = Modifier.weight(1.5f)
                     ) {

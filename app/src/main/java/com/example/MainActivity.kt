@@ -14,10 +14,10 @@ class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     
-    // Setup edge-to-edge layouts natively
     enableEdgeToEdge()
     
-    val viewModel = DetectionViewModel(this)
+    // Use applicationContext to ensure the ViewModel doesn't leak the Activity
+    val viewModel = DetectionViewModel(applicationContext)
 
     setContent {
       LizardLensTheme {

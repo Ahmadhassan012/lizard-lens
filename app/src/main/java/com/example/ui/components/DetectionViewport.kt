@@ -9,6 +9,7 @@ import android.widget.FrameLayout
 import androidx.annotation.OptIn
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
@@ -43,7 +44,9 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import coil.compose.rememberAsyncImagePainter
-import com.example.ml.ObjectDetector
+import android.view.TextureView
+import android.view.Surface
+import com.example.ml.LizardMLDetector
 import com.example.state.Detection
 import com.example.state.InputMode
 import kotlinx.coroutines.delay
@@ -164,28 +167,9 @@ fun LiveCameraViewport(
 
                         imageAnalysis.setAnalyzer(cameraExecutor) { imageProxy ->
                             try {
-                                val frameWidth = imageProxy.width
-                                val frameHeight = imageProxy.height
-                                
-                                // Measure average frame luminance
-                                val buffer = imageProxy.planes[0].buffer
-                                val data = ByteArray(buffer.remaining())
-                                buffer.get(data)
-                                var sum = 0L
-                                val step = (data.size / 100).coerceAtLeast(1)
-                                var count = 0
-                                for (i in 0 until data.size step step) {
-                                    sum += data[i].toInt() and 0xFF
-                                    count++
-                                }
-                                val avgBrightness = if (count > 0) (sum.toFloat() / count) / 255f else 0.5f
-
-                                val timestamp = System.currentTimeMillis()
+                                val bitmap = imageProxy.toBitmap()
                                 val results = objectDetector.detectLiveStream(
-                                    frameWidth = frameWidth,
-                                    frameHeight = frameHeight,
-                                    pixelBrightness = avgBrightness,
-                                    frameTimestamp = timestamp,
+                                    bitmap = bitmap,
                                     threshold = confidenceThreshold
                                 )
                                 onLiveDetections(results)
@@ -242,6 +226,8 @@ fun VideoExoPlayerViewport(
     onVideoDetections: (List<Detection>) -> Unit
 ) {
     val context = LocalContext.current
+    var textureViewRef by remember { mutableStateOf<TextureView?>(null) }
+
     val exoPlayer = remember {
         ExoPlayer.Builder(context).build().apply {
             repeatMode = Player.REPEAT_MODE_ONE
@@ -262,24 +248,21 @@ fun VideoExoPlayerViewport(
     }
 
     // Build frame analyze ticker depending on playback position and frame skipping factor
-    LaunchedEffect(isPlaying, confidenceThreshold, frameSkipSelector) {
-        val objectDetector = ObjectDetector(context)
+    LaunchedEffect(isPlaying, confidenceThreshold, frameSkipSelector, textureViewRef) {
+        val objectDetector = LizardMLDetector(context)
         var tickCount = 0
         while (isPlaying) {
             tickCount++
             // Only execute TFLite detection on eligible ticks to match frame skipping factor
             if (tickCount % frameSkipSelector == 0) {
-                // Simulate frame-driven coordinate evolution based on playback progress
-                val currentPosition = exoPlayer.currentPosition
-                val brightnessVal = 0.6f // simulated video illumination
-                val results = objectDetector.detectLiveStream(
-                    frameWidth = 1920,
-                    frameHeight = 1080,
-                    pixelBrightness = brightnessVal,
-                    frameTimestamp = currentPosition,
-                    threshold = confidenceThreshold
-                )
-                onVideoDetections(results)
+                val bitmap = textureViewRef?.bitmap
+                if (bitmap != null) {
+                    val results = objectDetector.detectFrame(
+                        bitmap = bitmap,
+                        threshold = confidenceThreshold
+                    )
+                    onVideoDetections(results)
+                }
             }
             delay(150L) // 150ms intervals
         }
@@ -297,7 +280,6 @@ fun VideoExoPlayerViewport(
             try {
                 exoPlayer.removeListener(listener)
                 exoPlayer.stop()
-                exoPlayer.clearVideoSurface()
                 exoPlayer.release()
             } catch (e: Exception) {
                 Log.e("VideoViewport", "Error releasing ExoPlayer: ${e.localizedMessage}")
@@ -305,24 +287,16 @@ fun VideoExoPlayerViewport(
         }
     }
 
-    // Video display frame
+    // Video display frame using TextureView for bitmap capture capability
     AndroidView(
         factory = { ctx ->
-            FrameLayout(ctx).apply {
+            TextureView(ctx).apply {
                 layoutParams = ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT
                 )
-                val playerView = PlayerView(ctx).apply {
-                    useController = false // We draw our custom visual transport bar
-                    player = exoPlayer
-                    setBackgroundColor(AndroidColor.BLACK)
-                    layoutParams = FrameLayout.LayoutParams(
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                        FrameLayout.LayoutParams.MATCH_PARENT
-                    )
-                }
-                addView(playerView)
+                textureViewRef = this
+                exoPlayer.setVideoTextureView(this)
             }
         },
         modifier = Modifier.fillMaxSize()
@@ -345,4 +319,6 @@ fun EmptyViewportPlaceholder(text: String) {
             lineHeight = 24.sp
         )
     }
+}
+ }
 }

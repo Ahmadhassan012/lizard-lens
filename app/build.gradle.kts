@@ -68,6 +68,7 @@ dependencies {
   implementation(libs.coil.compose)
   implementation(libs.kotlinx.coroutines.android)
   implementation(libs.kotlinx.coroutines.core)
+  implementation(libs.mediapipe.tasks.vision)
   
   // Media3 ExoPlayer for Video Mode
   implementation("androidx.media3:media3-exoplayer:1.2.0")
